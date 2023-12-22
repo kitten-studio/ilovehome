@@ -2,7 +2,7 @@
 
 # 🌈️ Ilovehome
 
-제가 진행한 사이드 프로젝트는 지금까지 배운 지식과 자신만의 도메인 지식을 활용하여, 사람들에게 도움이 되는 서비스를 개발하는 것이었습니다. 이 서비스는 기부의 즐거움을 더 많은 사람들과 공유하고자 하는 목적으로 개발되었습니다.
+이 사이드 프로젝트의 목적은 지금까지 배운 지식과 자신만의 도메인 지식을 활용하여, 사람들에게 도움이 되는 서비스를 개발하는 것이었습니다. 이 프로젝트를 통해서 기부의 즐거움이 더 많은 사람들에게 전달 되었으면 좋겠습니다.
 
 📲️ [Android available on the Google Play Store](https://play.google.com/store/apps/details?id=com.ilovehomeapp)
 
@@ -14,6 +14,7 @@
 -   app updated 팝업 구현
 -   jwt 기반 로그인 인증 시스템 구현
 -   kakao provider를 이용해서 로그인 연동 구현
+-   회원 등록 및 회원 정보 업데이트 구현
 -   zustand로 전역 상태 구현
 -   image-picker를 사용해서 google firebase store에 이미지 업로드 구현
 -   styled-components를 이용해서 component 스타일의 css 구현
