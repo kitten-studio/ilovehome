@@ -1,0 +1,21 @@
+{
+	"compilerOptions": {
+		"target": "es5",
+		"module": "commonjs",
+		"lib": ["es2015", "es2017", "dom", "es2017.object"],
+		"jsx": "react",
+		"strict": false,
+		"noImplicitAny": false,
+		"strictNullChecks": true,
+		"strictFunctionTypes": false,
+		"strictPropertyInitialization": true,
+		"moduleResolution": "node",
+		"baseUrl": "./packages",
+		"allowSyntheticDefaultImports": true,
+		"esModuleInterop": true,
+		"experimentalDecorators": true,
+		"emitDecoratorMetadata": true,
+		"resolveJsonModule": true,
+		"skipLibCheck": true
+	}
+}

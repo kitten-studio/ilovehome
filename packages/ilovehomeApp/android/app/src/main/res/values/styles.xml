@@ -1,0 +1,23 @@
+<resources>
+
+    <style name="SplashScreenTheme" parent="SplashScreen_SplashTheme">
+        <item name="colorPrimaryDark">@color/splashprimary</item>
+    </style>
+
+    <!-- Base application theme. -->
+    <style name="AppTheme" parent="Theme.AppCompat.Light.NoActionBar">
+        <!-- Customize your theme here. -->
+        <item name="colorPrimary">@color/black1</item>
+        <item name="colorPrimaryDark">@color/black1</item>
+        <item name="windowNoTitle">true</item>
+        <item name="windowActionBar">false</item>
+        <item name="android:textSize">17sp</item>
+        <item name="android:textColorPrimary">@color/grey1</item>
+        <item name="android:windowFullscreen">false</item>
+    </style>
+
+    <style name="MainActivityTheme" parent="AppTheme">
+        <item name="android:windowBackground">@color/white1</item>
+    </style>
+
+</resources>

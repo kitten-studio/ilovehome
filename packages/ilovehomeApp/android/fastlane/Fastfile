@@ -1,0 +1,237 @@
+# This file contains the fastlane.tools configuration
+# You can find the documentation at https://docs.fastlane.tools
+#
+# For a list of all available actions, check out
+#
+#     https://docs.fastlane.tools/actions
+#
+# For a list of all available plugins, check out
+#
+#     https://docs.fastlane.tools/plugins/available-plugins
+#
+
+# Uncomment the line if you want fastlane to automatically update itself
+# update_fastlane
+require "pathname"
+
+default_platform(:android)
+
+before_all do |lane, options|
+  @git_branch = ENV["GIT_BRANCH"] || sh("git branch --show-current | tr -d '\n'")
+  @commit_message = sh("git log -1 --pretty=%B | tr -d '\n'")
+  @phase = options[:phase]
+end
+
+# platform :android do
+#   desc "Runs all the tests"
+#   lane :test do
+#     gradle(task: "test")
+#   end
+
+#   desc "Submit a new Beta Build to Crashlytics Beta"
+#   lane :beta do
+#     gradle(task: "clean assembleRelease")
+#     crashlytics
+  
+#     # sh "your_script.sh"
+#     # You can also use other beta testing services here
+#   end
+
+#   desc "Deploy a new version to the Google Play"
+#   lane :deploy do
+#     gradle(task: "clean assembleRelease")
+#     upload_to_play_store
+#   end
+# end
+
+def backup_files()
+  backup_file(path: "./app/build.gradle")
+end
+
+def restore_files()
+  restore_file(path: "./app/build.gradle")
+end
+
+
+def convertToApk()
+  apk_output_path="#{ sh("dirname $(pwd)").strip }/app/build/outputs/apk/#{ @phase }/release"
+  lane_context[SharedValues::GRADLE_APK_OUTPUT_PATH] = "#{ apk_output_path }/ilovehomeApp.apk";
+  sh("mkdir -p #{ apk_output_path }")
+  bundletool(
+    ks_path: "#{Dir.pwd}/../upload.jks",
+    ks_password: 'ilovemyhometown@181018',
+    ks_key_alias: 'ilovehome-real',
+    ks_key_alias_password: 'ilovemyhometown@181018',
+    bundletool_version: '1.12.0', # For searching a specific version of bundletool visit https://github.com/google/bundletool/releases
+    aab_path: getAndroidAABPath(),
+    apk_output_path: apk_output_path,
+    verbose: true
+  )
+  
+  sh("cp #{ apk_output_path }/universal.apk #{ apk_output_path }/ilovehomeApp.apk")
+  sh("cp #{ apk_output_path }/universal.apk ../ilovehomeApp.apk")
+end
+
+lane :prepare_build do
+  # sh("sh", "./run_jetify.sh")
+  gradle(task: "clean")
+  # if(!ENV["BUILD_NUMBER"] && @phase == "prod")
+  #   ENV["BUILD_NUMBER"] = prompt(text: "빌드버전을 입력해주세요. (play store에 업로드하는 경우, 빌드버전이 중복되지 않게 주의해주세요.)")
+  # end
+  # puts ENV["BUILD_NUMBER"]
+  # @BUILD_NUMBER  = Pathname.new("#{Dir.pwd}").cleanpath
+  puts Pathname.new("#{Dir.pwd}").cleanpath
+  puts Pathname.new("#{Dir.pwd}/../app/debug.keystore").cleanpath
+  puts @BUILD_NUMBER
+
+  android_set_version_code(version_code: ENV["BUILD_NUMBER"])
+end
+
+lane :build_dev do
+  prepare_build
+  gradle(
+    task: "bundle",
+    build_type: "devRelease",
+  )
+  convertToApk()
+end
+
+lane :build_preview do
+  prepare_build
+  gradle(
+    task: "bundle",
+    build_type: "previewRelease",
+  )
+  # gradle(
+  #   task: "uploadCrashlyticsSymbolFile",
+  #   build_type: "previewRelease",
+  # )
+  convertToApk()
+end
+
+lane :build_real do
+  prepare_build
+  gradle(tasks: "bundleDefaultRelease")
+  convertToApk()
+end
+
+
+lane :build do
+  if is_ci
+    setup_ci
+    puts "I'm a computer"
+  else
+    puts "Hi Human!"
+  end
+  sh "pwd" # => "[root]/fastlane"
+  puts Dir.pwd # => "[root]/fastlane"
+  puts @commit_message
+  puts @phase
+  if(@phase == "dev") 
+    puts "there is the " + @phase
+  end
+  begin
+    if @phase != "Debug"
+      replaceDotEnv(@phase)
+    end
+    if @phase == "dev"
+      build_dev
+    elsif @phase == "preview"
+      build_preview
+    elsif @phase == "real"
+      build_real
+    end
+    @versionName = android_get_version_name()
+    @versionCode = android_get_version_code()
+    puts @versionName
+    puts @versionCode
+    sh("ls", "-all")
+    puts Dir.pwd
+  rescue => error
+    p error.message
+    raise error
+  ensure
+    if @phase != "Debug"
+      makeDotEnvToOriginal()
+    end
+  end
+end
+
+lane :upload_to_appcenter do
+  ENV["APPCENTER_APK"] = ENV["APPCENTER_APK"].gsub("/release/", "/#{@phase}/release/")
+  appcenter_upload(
+    api_token: ENV["APPCENTER_API_TOKEN"],
+    owner_name: ENV["APPCENTER_OWNER_NAME"],
+    app_name: ENV["APPCENTER_APP_NAME"],
+    file: ENV["APPCENTER_APK"],
+    notify_testers: true,
+    release_notes: "#{@phase} | #{@commit_message} https://play.google.com/apps/internaltest/4700660425383113686",
+  )
+end
+
+lane :upload_to_playstore do
+  if(( !ENV["PLAY_STORE_KEY_FILE_PATH"]))
+    ENV["PLAY_STORE_KEY_FILE_PATH"] = prompt(text: "play store 업로드를 위한 json key file 경로를 입력해주세요. e.g)  /Users/owen/xxx.json")
+  end
+  upload_to_play_store(
+    release_status: "completed",
+    track: "internal",
+    json_key: ENV["PLAY_STORE_KEY_FILE_PATH"],
+    aab: ENV["PLAYSTORE_AAB"],
+    skip_upload_apk: true,
+  )
+end
+
+lane :deploy do
+  build
+  upload_to_appcenter
+  if @phase == "real"
+    upload_to_playstore
+  end
+end
+
+def replaceDotEnv(envName)
+  prodEnv = ENV["PROD_ENV"]
+  realEnv = ENV["REAL_ENV"]
+  releaseEnv = ENV["RELEASE_ENV"]
+  previewEnv = ENV["PREVIEW_ENV"]
+  devEnv = ENV["DEV_ENV"]
+  originalEnv = ENV["ORIGINAL_ENV"]
+  originalEnvCopy = ENV["ORIGINAL_ENV_COPY"]
+
+  sh("echo", "'- Replacing .env with .env.#{envName}'")
+
+  if envName == "prod"
+    sh("cp", originalEnv, originalEnvCopy) # .env 복사본 생성
+    sh("cp", prodEnv, originalEnv) # .env.xxxx -> .env로 복사
+  end
+  if envName == "real"
+    sh("cp", originalEnv, originalEnvCopy) # .env 복사본 생성
+    sh("cp", realEnv, originalEnv) # .env.xxxx -> .env로 복사
+  end
+  if envName == "release"
+    sh("cp", originalEnv, originalEnvCopy) # .env 복사본 생성
+    sh("cp", releaseEnv, originalEnv) # .env.xxxx -> .env로 복사
+  end
+  if envName == "preview"
+    sh("cp", originalEnv, originalEnvCopy) # .env 복사본 생성
+    sh("cp", previewEnv, originalEnv) # .env.xxxx -> .env로 복사
+  end
+  if envName == "dev"
+    sh("cp", originalEnv, originalEnvCopy) # .env 복사본 생성
+    sh("cp", devEnv, originalEnv) # .env.xxxx -> .env로 복사
+  end
+end
+
+def makeDotEnvToOriginal()
+  sh("cp", ENV["ORIGINAL_ENV_COPY"], ENV["ORIGINAL_ENV"])
+  sh("rm", "-f", ENV["ORIGINAL_ENV_COPY"])
+end
+
+def getAndroidAABPath() 
+  if @phase == "dev" || @phase == "preview"
+    return "#{Dir.pwd}/../app/build/outputs/bundle/#{ @phase }Release/app-#{ @phase }-release.aab"
+  else
+    return "#{Dir.pwd}/../app/build/outputs/bundle/defaultRelease/app-default-release.aab"
+  end
+end

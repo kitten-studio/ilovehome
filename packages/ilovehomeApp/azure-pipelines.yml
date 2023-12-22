@@ -1,0 +1,80 @@
+# Starter pipeline
+# Start with a minimal pipeline that you can customize to build and deploy your code.
+# Add steps that build, run tests, deploy, and more:
+# https://aka.ms/yaml
+
+trigger:
+    branches:
+        include:
+            - prod/app
+            - deploy/release
+            - deploy/app-real
+            - deploy/app-dev
+            - deploy/app-preview
+            - deploy/app-dev-beta
+            - deploy/app-preview-beta
+
+pr: none
+
+variables:
+    - template: ../../ci/templates/ilovehome_vars.yml
+
+stages:
+    - stage: "${{ variables.env }}_Android_App_Build"
+      dependsOn: []
+      jobs:
+          - job: "${{ variables.env }}_Android_App_Build"
+            workspace:
+                clean: all
+            variables:
+                buildNumber: $[ counter('counter',1) ]
+            pool:
+                vmImage: "macOS-latest"
+            steps:
+                # Node.js tool installer
+                # Finds or downloads and caches the specified version spec of Node.js and adds it to the PATH
+                - task: JavaToolInstaller@0
+                  inputs:
+                      versionSpec: "11"
+                      jdkArchitectureOption: "x64"
+                      jdkSourceOption: "PreInstalled"
+                - task: NodeTool@0
+                  inputs:
+                      versionSpec: "16.x"
+                - script: |
+                      java -version
+                  env:
+                      JAVA_HOME: $(JAVA_HOME_11_X64)
+                      PATH: $(JAVA_HOME_11_X64)/bin:$(PATH)
+                  displayName: Use JDK 11
+                - script: |
+                      echo hello from macOS
+                      echo '$(buildNumber)'
+                      echo '${{ variables.env }}'
+                      echo '${{ variables.testFlight }}'
+                      git version
+                      pwd
+                      ls -all
+                      node -v
+                  displayName: Sparse checkout
+                - task: DownloadSecureFile@1
+                  name: playStoreKey
+                  inputs:
+                      secureFile: "pc-api-google-play-console-api.json"
+                  displayName: "Download key file for android play store api"
+                - script: |
+                      # 여기에 다운로드한 파일을 사용하는 스크립트나 명령어를 작성합니다.
+
+                      echo "Using the Google Play Store API key from $(playStoreKey.secureFilePath)"
+                  displayName: "Use Google Play Store API Key"
+                - script: |
+                      yarn
+                  displayName: Yarn install
+                  workingDirectory: packages/ilovehomeApp
+                - script: |
+                      export BUILD_NUMBER=$(buildNumber)
+                      export PLAY_STORE_KEY_FILE_PATH=$(playStoreKey.secureFilePath)
+                      fastlane install_plugins
+                      fastlane deploy phase:${{ variables.env }}
+                  workingDirectory: packages/ilovehomeApp/android
+                  displayName: Build Android

@@ -1,0 +1,15 @@
+{
+	"extends": "../../tsconfig.base",
+	"compilerOptions": {
+		/* Base directory to resolve non-absolute module names. */
+		"outDir": "./dist",
+		"sourceMap": true,
+		"types": ["node"],
+		"baseUrl": "./src",
+		"paths": {
+			"@main/*": ["./*"],
+			"@main/static/*": ["static/*"]
+		}
+	},
+	"exclude": ["node_modules/**/*"]
+}

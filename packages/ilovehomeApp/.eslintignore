@@ -1,0 +1,5 @@
+/style
+/scripts
+/screens
+*.config.js
+*.test.*
